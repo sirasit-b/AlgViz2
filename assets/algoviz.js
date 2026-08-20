@@ -34,7 +34,7 @@ function parseList(str, maxN, minV, maxV){
 /* ---------- domains → fields (categories) → modules ---------- */
 var DOMAINS = [
   { id:'cs',  th:'วิทยาการคอมพิวเตอร์', en:'Computer Science',      note:'อัลกอริทึม · โครงสร้างข้อมูล · ทฤษฎีการคำนวณ' },
-  { id:'cpe', th:'วิศวกรรมคอมพิวเตอร์',  en:'Computer Engineering',  note:'เครือข่าย · ระบบปฏิบัติการ · ดิจิทัลลอจิก · สถาปัตยกรรม' },
+  { id:'cpe', th:'วิศวกรรมคอมพิวเตอร์',  en:'Computer Engineering',  note:'เครือข่าย · ระบบปฏิบัติการ · ดิจิทัลลอจิก · สถาปัตยกรรม', hidden:true },
   { id:'se',  th:'วิศวกรรมซอฟต์แวร์',    en:'Software Engineering',  note:'ดีไซน์แพตเทิร์น · เวอร์ชันคอนโทรล · การทดสอบ' }
 ];
 var DOMAINMAP = {}; DOMAINS.forEach(function(d){ DOMAINMAP[d.id]=d; });
@@ -587,6 +587,7 @@ var PLAYER = new Player();
    ========================================================================== */
 var catalogView = $('[data-view="catalog"]');
 var vizView = $('[data-view="viz"]');
+var compareView = $('[data-view="compare"]');
 var vizWrap = $('.av-viz');
 var vizBar = $('.av-vizbar');
 var curCatCls = '';
@@ -594,6 +595,7 @@ var curCatCls = '';
 function showView(which){
   catalogView.classList.toggle('is-active', which==='catalog');
   vizView.classList.toggle('is-active', which==='viz');
+  compareView.classList.toggle('is-active', which==='compare');
   if(which==='catalog'){ try{ window.scrollTo({top:0,behavior:'auto'}); }catch(e){} }
 }
 
@@ -625,8 +627,143 @@ function openAlgo(id){
   var idx = ALGOS.indexOf(m);
   $('[data-viz-prev]').onclick=function(){ navTo(ALGOS[(idx-1+ALGOS.length)%ALGOS.length].id); };
   $('[data-viz-next]').onclick=function(){ navTo(ALGOS[(idx+1)%ALGOS.length].id); };
-  try{ document.title = m.nameEn + ' · ' + m.nameTh + ' | AlgoViz'; }catch(e){}
+  try{ document.title = m.nameEn + ' · ' + m.nameTh + ' | DevSpark by BorntoDev'; }catch(e){}
   showView('viz');
+  try{ window.scrollTo({top:0,behavior:'auto'}); }catch(e){}
+}
+
+/* ==========================================================================
+   COMPARE VIEW — race any 2 sorting algorithms on the SAME array, synced
+   (scoped to sorting: those 6 topics share the bars renderer + build(arr)
+   signature, so a side-by-side comparison is actually apples-to-apples —
+   other categories use different renderers/inputs and wouldn't compare cleanly)
+   ========================================================================== */
+var SORT_IDS = ['bubble-sort','selection-sort','insertion-sort','merge-sort','quick-sort','heap-sort'];
+var cmpArr = [], cmpPlaying = false, cmpTimer = null, cmpSpeed = 5, cmpWired = false;
+var cmpA, cmpB, cmpPlayIcon;
+
+function CompareSide(key){
+  this.key = key;
+  this.svg = $('[data-cmp-svg="'+key+'"]');
+  this.capEl = $('[data-cmp-caption="'+key+'"]');
+  this.statsEl = $('[data-cmp-stats="'+key+'"]');
+  this.selectEl = $('[data-cmp-select="'+key+'"]');
+  this.id = null; this.frames = []; this.i = 0;
+}
+CompareSide.prototype.populateOptions = function(selectedId){
+  this.selectEl.innerHTML = SORT_IDS.filter(function(id){ return BYID[id]; }).map(function(id){
+    return '<option value="'+id+'"'+(id===selectedId?' selected':'')+'>'+esc(BYID[id].nameEn)+'</option>';
+  }).join('');
+};
+CompareSide.prototype.setAlgo = function(id, arr){
+  this.id = id;
+  this.renderer = RENDERERS.bars(); this.renderer.mount(this.svg); /* fresh persistent-bar state per algo */
+  this.frames = BYID[id].build(arr.slice()); this.i = 0; this.draw(false);
+};
+CompareSide.prototype.draw = function(animate){
+  var f = this.frames[this.i]; if(!f) return;
+  this.renderer.render(f, this.frames[this.i-1], animate && animOK());
+  this.capEl.textContent = f.note || '';
+  if(f.stats){
+    this.statsEl.innerHTML = Object.keys(f.stats).map(function(k){
+      return '<div class="av-stat"><b>'+esc(f.stats[k])+'</b><span>'+esc(k)+'</span></div>';
+    }).join('');
+  } else this.statsEl.innerHTML = '';
+};
+CompareSide.prototype.go = function(i){ this.i = clamp(i, 0, this.frames.length-1); this.draw(true); };
+CompareSide.prototype.atEnd = function(){ return this.i >= this.frames.length-1; };
+
+function cmpDelay(){ return 1150 - cmpSpeed*100; }
+function cmpUpdateSpeedLabel(){
+  var lbl = ['ช้ามาก','ช้า','ช้า','ค่อนข้างช้า','ปกติ','ปกติ','ค่อนข้างเร็ว','เร็ว','เร็วมาก','เร็วสุด'][cmpSpeed-1]||'ปกติ';
+  $('[data-cmp-speed-val]').textContent = lbl;
+}
+function cmpStatLine(stats){
+  var keys = stats ? Object.keys(stats) : [];
+  if(!keys.length) return '';
+  return ' · ' + keys.map(function(k){ return k+' '+stats[k]; }).join(' · ');
+}
+function cmpUpdateSummary(){
+  var host = $('[data-cmp-summary]'); if(!host || !cmpA || !cmpB) return;
+  var fa = cmpA.frames[cmpA.i], fb = cmpB.frames[cmpB.i];
+  var doneA = cmpA.atEnd(), doneB = cmpB.atEnd();
+  var note = '';
+  if(doneA || doneB){
+    note = (doneA && doneB) ? 'เรียงเสร็จพร้อมกันทั้งคู่ ✓'
+      : (doneA ? esc(BYID[cmpA.id].nameEn)+' เรียงเสร็จก่อน 🏆' : esc(BYID[cmpB.id].nameEn)+' เรียงเสร็จก่อน 🏆');
+  }
+  host.innerHTML = '<div class="av-cmp-summary-row">'
+    + '<div class="av-cmp-summary-side'+(doneA&&!doneB?' is-winner':'')+'"><b>'+esc(BYID[cmpA.id].nameEn)+'</b><span>ขั้นตอน '+(cmpA.i+1)+' / '+cmpA.frames.length+cmpStatLine(fa&&fa.stats)+'</span></div>'
+    + '<div class="av-cmp-summary-side'+(doneB&&!doneA?' is-winner':'')+'"><b>'+esc(BYID[cmpB.id].nameEn)+'</b><span>ขั้นตอน '+(cmpB.i+1)+' / '+cmpB.frames.length+cmpStatLine(fb&&fb.stats)+'</span></div>'
+    + '</div>'
+    + (note ? '<div class="av-cmp-summary-note">'+note+'</div>' : '');
+}
+function cmpFirst(){ cmpA.go(0); cmpB.go(0); cmpUpdateSummary(); }
+function cmpStep(delta){ cmpA.go(cmpA.i+delta); cmpB.go(cmpB.i+delta); cmpUpdateSummary(); }
+function cmpPause(){
+  cmpPlaying = false; clearTimeout(cmpTimer);
+  if(cmpPlayIcon) cmpPlayIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+}
+function cmpPlay(){
+  if(cmpA.atEnd() && cmpB.atEnd()){ cmpA.go(0); cmpB.go(0); }
+  cmpPlaying = true;
+  if(cmpPlayIcon) cmpPlayIcon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+  (function loop(){
+    if(!cmpPlaying) return;
+    var advA = !cmpA.atEnd(), advB = !cmpB.atEnd();
+    if(!advA && !advB){ cmpPause(); return; }
+    if(advA) cmpA.go(cmpA.i+1);
+    if(advB) cmpB.go(cmpB.i+1);
+    cmpUpdateSummary();
+    cmpTimer = setTimeout(loop, cmpDelay());
+  })();
+}
+function cmpSetArray(arr){
+  cmpArr = arr.slice();
+  $('[data-cmp-arr]').value = cmpArr.join(', ');
+  cmpPause();
+  if(cmpA.id) cmpA.setAlgo(cmpA.id, cmpArr);
+  if(cmpB.id) cmpB.setAlgo(cmpB.id, cmpArr);
+  cmpUpdateSummary();
+}
+function cmpRegen(){ var arr=[]; for(var i=0;i<9;i++) arr.push(randInt(5,99)); cmpSetArray(arr); }
+function cmpApply(){
+  var arr = parseList($('[data-cmp-arr]').value, 14, 1, 999);
+  if(arr.length<2){ cmpRegen(); return; }
+  cmpSetArray(arr);
+}
+function cmpOnSelectChange(side){
+  var s = side==='a'?cmpA:cmpB;
+  cmpPause(); s.setAlgo(s.selectEl.value, cmpArr); cmpUpdateSummary();
+}
+function wireCompareControls(){
+  if(cmpWired) return; cmpWired = true;
+  cmpPlayIcon = $('[data-cmp-play-icon]');
+  $('[data-cmp-select="a"]').addEventListener('change', function(){ cmpOnSelectChange('a'); });
+  $('[data-cmp-select="b"]').addEventListener('change', function(){ cmpOnSelectChange('b'); });
+  $('[data-cmp-rand]').addEventListener('click', cmpRegen);
+  $('[data-cmp-apply]').addEventListener('click', cmpApply);
+  $('[data-cmp-t="play"]').addEventListener('click', function(){ cmpPlaying?cmpPause():cmpPlay(); });
+  $('[data-cmp-t="first"]').addEventListener('click', function(){ cmpPause(); cmpFirst(); });
+  $('[data-cmp-t="prev"]').addEventListener('click', function(){ cmpPause(); cmpStep(-1); });
+  $('[data-cmp-t="next"]').addEventListener('click', function(){ cmpPause(); cmpStep(1); });
+  var speedEl = $('[data-cmp-speed]');
+  speedEl.addEventListener('input', function(){ cmpSpeed=parseInt(speedEl.value,10); cmpUpdateSpeedLabel(); });
+  cmpUpdateSpeedLabel();
+}
+function openCompare(idA, idB){
+  if(!BYID[idA] || SORT_IDS.indexOf(idA)<0) idA = SORT_IDS[0];
+  if(!BYID[idB] || SORT_IDS.indexOf(idB)<0 || idB===idA) idB = SORT_IDS.filter(function(id){ return id!==idA; })[0];
+  if(!cmpA){ cmpA = new CompareSide('a'); cmpB = new CompareSide('b'); }
+  wireCompareControls();
+  cmpA.populateOptions(idA); cmpB.populateOptions(idB);
+  if(!cmpArr.length){ var arr=[]; for(var i=0;i<9;i++) arr.push(randInt(5,99)); cmpArr=arr; }
+  cmpPause();
+  $('[data-cmp-arr]').value = cmpArr.join(', ');
+  cmpA.setAlgo(idA, cmpArr); cmpB.setAlgo(idB, cmpArr);
+  cmpUpdateSummary();
+  try{ document.title = 'เปรียบเทียบอัลกอริทึม · Compare | DevSpark by BorntoDev'; }catch(e){}
+  showView('compare');
   try{ window.scrollTo({top:0,behavior:'auto'}); }catch(e){}
 }
 
@@ -640,7 +777,7 @@ function currentId(){
     if(AV_BASE && p.indexOf(AV_BASE)===0) p = p.slice(AV_BASE.length);
     return p.replace(/^\/+|\/+$/g,'');
   }
-  var m = /(?:^|&)av=([\w-]+)/.exec(location.hash.replace(/^#/,''));
+  var m = /(?:^|&)av=([\w\-\/]+)/.exec(location.hash.replace(/^#/,''));
   return m ? m[1] : '';
 }
 function navTo(id){
@@ -652,21 +789,51 @@ function navTo(id){
 function goHome(){ navTo(''); }
 function route(){
   var id = currentId();
-  if(id && BYID[id]) openAlgo(id);
+  var cm = /^compare\/([\w-]+)\/([\w-]+)$/.exec(id||'');
+  if(cm) openCompare(cm[1], cm[2]);
+  else if(id && BYID[id]) openAlgo(id);
   else { showView('catalog'); try{ document.title = DEFAULT_TITLE; }catch(e){} }
 }
 window.addEventListener('popstate', route);
 window.addEventListener('hashchange', function(){ if(!USE_HISTORY) route(); });
 
-/* home / jump links */
+/* home / open / in-page scroll links */
 $$('[data-av-home]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); navTo(''); }); });
 $$('[data-av-open]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); navTo(a.getAttribute('data-av-open')); }); });
-$$('[data-av-jump]').forEach(function(a){ a.addEventListener('click', function(e){
-  e.preventDefault(); navTo('');
-  var key=a.getAttribute('data-av-jump');
-  var t = $('[data-dom-sec="'+key+'"]') || $('[data-cat-sec="'+key+'"]');
-  if(t) setTimeout(function(){ t.scrollIntoView({behavior:'smooth', block:'start'}); }, 30);
+$$('[data-av-compare]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); navTo('compare/'+SORT_IDS[0]+'/'+SORT_IDS[4]); }); });
+function scrollToSection(id){
+  var t = document.getElementById(id); if(!t) return;
+  setTimeout(function(){ t.scrollIntoView({behavior: REDUCE?'auto':'smooth', block:'start'}); }, 30);
+}
+$$('[data-av-scroll]').forEach(function(a){ a.addEventListener('click', function(e){
+  e.preventDefault(); closeMobilePanel();
+  var id=a.getAttribute('data-av-scroll');
+  if(catalogView.classList.contains('is-active')) scrollToSection(id);
+  else { navTo(''); scrollToSection(id); }
 }); });
+
+/* mobile menu */
+var mobileToggle = $('[data-mobile-toggle]'), mobilePanel = $('[data-mobile-panel]');
+function closeMobilePanel(){
+  if(!mobilePanel) return;
+  mobilePanel.classList.remove('is-open');
+  if(mobileToggle){ mobileToggle.setAttribute('aria-expanded','false'); }
+}
+if(mobileToggle && mobilePanel){
+  mobileToggle.addEventListener('click', function(){
+    var open = mobilePanel.classList.toggle('is-open');
+    mobileToggle.setAttribute('aria-expanded', open?'true':'false');
+  });
+}
+
+/* header search: jump to the real catalog search box instead of duplicating search state */
+var searchToggle = $('[data-search-toggle]');
+if(searchToggle){ searchToggle.addEventListener('click', function(){
+  closeMobilePanel();
+  function focusSearch(){ var inp=$('[data-search]'); if(inp) inp.focus({preventScroll:true}); }
+  if(catalogView.classList.contains('is-active')){ scrollToSection('explore'); setTimeout(focusSearch, REDUCE?40:420); }
+  else { navTo(''); scrollToSection('explore'); setTimeout(focusSearch, REDUCE?40:420); }
+}); }
 
 /* keyboard shortcuts (only in viz view) */
 document.addEventListener('keydown', function(e){
@@ -682,7 +849,7 @@ document.addEventListener('keydown', function(e){
    CATALOG RENDER + FILTER
    ========================================================================== */
 var catsHost = $('[data-cats]');
-var filterState = { q:'', diff:0 };
+var filterState = { q:'', diff:0, intent:'' };
 
 function renderChips(){
   var host = $('[data-filter-chips]');
@@ -695,7 +862,13 @@ function renderChips(){
 }
 
 function matches(m){
+  var mcat = CATMAP[m.cat];
+  if(mcat && DOMAINMAP[mcat.domain] && DOMAINMAP[mcat.domain].hidden) return false;
   if(filterState.diff && m.difficulty!==filterState.diff) return false;
+  if(filterState.intent){
+    var okCat = filterState.intent==='tree-graph' ? (m.cat==='tree'||m.cat==='graph') : m.cat===filterState.intent;
+    if(!okCat) return false;
+  }
   var q = filterState.q.trim().toLowerCase();
   if(!q) return true;
   return (m.nameTh+' '+m.nameEn+' '+(m.blurb||'')+' '+m.cat+' '+CATMAP[m.cat].nameEn).toLowerCase().indexOf(q)>=0;
@@ -717,6 +890,7 @@ function cardHtml(m){
 function renderCatalog(){
   var html='';
   DOMAINS.forEach(function(d){
+    if(d.hidden) return;
     var fieldsHtml='', domCount=0;
     CATS.filter(function(c){ return c.domain===d.id; }).forEach(function(c){
       var list = ALGOS.filter(function(m){ return m.cat===c.id && matches(m); });
@@ -744,6 +918,8 @@ function renderCatalog(){
     card.addEventListener('click', function(){ navTo(id); });
     card.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); navTo(id); } });
   });
+  var countEl = $('[data-intent-count]');
+  if(countEl) countEl.textContent = ALGOS.filter(matches).length+' หัวข้อ';
 }
 
 $('[data-search]').addEventListener('input', function(e){ filterState.q=e.target.value; renderCatalog(); });
@@ -1542,56 +1718,69 @@ AlgoViz.register({
 
 
 /* ==========================================================================
-   HERO backdrop (three.js) + BOOT   (injected/called below)
+   HERO — live mini Bubble Sort demo (reuses the real bars renderer + the
+   real bubble-sort step-generator registered above; independent tiny
+   controller so it can never interfere with the full Player on /topic pages)
    ========================================================================== */
-function initHero(){
-  var canvas = $('[data-hero-canvas]');
-  if(!canvas) return;
-  if(REDUCE || !window.THREE){ heroFallback(); return; }
-  try{
-    var THREE=window.THREE;
-    var renderer=new THREE.WebGLRenderer({canvas:canvas, alpha:true, antialias:true});
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
-    var scene=new THREE.Scene();
-    var camera=new THREE.PerspectiveCamera(60, 1, 0.1, 100); camera.position.z=26;
-    var group=new THREE.Group(); scene.add(group);
-    // build a small "graph lattice": nodes + edges
-    var COLORS=[0xFFC000,0xA86BFF,0x0A84FF,0x30D158,0xD97757];
-    var N=26, pts=[];
-    for(var i=0;i<N;i++){
-      var v=new THREE.Vector3((Math.random()-0.5)*30,(Math.random()-0.5)*18,(Math.random()-0.5)*18);
-      pts.push(v);
-      var geo=new THREE.SphereGeometry(0.32,12,12);
-      var mat=new THREE.MeshBasicMaterial({color:COLORS[i%COLORS.length]});
-      var mesh=new THREE.Mesh(geo,mat); mesh.position.copy(v); group.add(mesh);
-    }
-    var lgeo=new THREE.BufferGeometry(), lpos=[];
-    for(var a=0;a<N;a++) for(var b=a+1;b<N;b++){ if(pts[a].distanceTo(pts[b])<7.5){ lpos.push(pts[a].x,pts[a].y,pts[a].z, pts[b].x,pts[b].y,pts[b].z); } }
-    lgeo.setAttribute('position', new THREE.Float32BufferAttribute(lpos,3));
-    var lines=new THREE.LineSegments(lgeo, new THREE.LineBasicMaterial({color:0xFFC000, transparent:true, opacity:0.14}));
-    group.add(lines);
-    function resize(){ var r=canvas.getBoundingClientRect(); var w=r.width||canvas.clientWidth, h=r.height||canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
-    resize(); window.addEventListener('resize', resize);
-    var raf;
-    (function animate(){ group.rotation.y+=0.0016; group.rotation.x+=0.0006; renderer.render(scene,camera); raf=requestAnimationFrame(animate); })();
-    canvas.style.opacity='0.55';
-  }catch(e){ heroFallback(); }
+function initHeroDemo(){
+  var host = $('[data-hero-demo]'); if(!host) return;
+  var svg = $('[data-hero-svg]', host); if(!svg || !BYID['bubble-sort']) return;
+  var capEl = $('[data-hero-caption]', host);
+  var stepEl = $('[data-hero-step]', host);
+  var playBtn = $('[data-hero-play]', host), playIcon = $('[data-hero-play-icon]', host);
+  var prevBtn = $('[data-hero-prev]', host), nextBtn = $('[data-hero-next]', host), resetBtn = $('[data-hero-reset]', host);
+  var speedSel = $('[data-hero-speed]', host);
+  var renderer = RENDERERS.bars(); renderer.mount(svg);
+  var frames=[], i=0, playing=false, timer=null;
+  function delay(){ return 1300 - (speedSel?(parseInt(speedSel.value,10)||5):5)*110; }
+  function draw(animate){
+    var f=frames[i]; if(!f) return;
+    renderer.render(f, frames[i-1], animate && animOK());
+    if(capEl) capEl.textContent = f.note||'';
+    if(stepEl) stepEl.textContent = (i+1)+' / '+frames.length;
+  }
+  function go(n){ i=clamp(n,0,frames.length-1); draw(true); }
+  function pause(){ playing=false; clearTimeout(timer); if(playIcon) playIcon.innerHTML='<path d="M8 5v14l11-7z"/>'; }
+  function play(){
+    if(i>=frames.length-1) i=0;
+    playing=true; if(playIcon) playIcon.innerHTML='<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+    (function loop(){ if(!playing) return; if(i>=frames.length-1){ pause(); return; } i++; draw(true); timer=setTimeout(loop, delay()); })();
+  }
+  function load(){
+    var arr=[]; for(var k=0;k<7;k++) arr.push(randInt(20,90));
+    frames = BYID['bubble-sort'].build(arr); i=0; draw(false);
+  }
+  if(playBtn) playBtn.addEventListener('click', function(){ playing?pause():play(); });
+  if(prevBtn) prevBtn.addEventListener('click', function(){ pause(); go(i-1); });
+  if(nextBtn) nextBtn.addEventListener('click', function(){ pause(); go(i+1); });
+  if(resetBtn) resetBtn.addEventListener('click', function(){ pause(); load(); });
+  load();
+  if(!REDUCE) play(); /* only auto-play when motion isn't reduced; manual Play always works */
 }
-function heroFallback(){
-  var orbs=$$('.orb'); if(!animOK()){ return; }
-  orbs.forEach(function(o){ anime({targets:o, translateX:function(){return randInt(-30,30);}, translateY:function(){return randInt(-24,24);}, scale:function(){return randInt(94,110)/100;}, duration:function(){return randInt(9000,14000);}, direction:'alternate', loop:true, easing:'easeInOutSine'}); });
+
+/* ==========================================================================
+   HOME — Quick Intent Selector: a real filter on the full topic catalog
+   (sets filterState.intent + re-renders the same renderCatalog() the search
+   box and difficulty chips already drive — no separate preview list)
+   ========================================================================== */
+var intentHost = $('[data-intent-list]');
+if(intentHost){
+  $$('[data-intent]', intentHost).forEach(function(b){
+    var bcat = b.getAttribute('data-intent');
+    if(bcat && CATMAP[bcat] && DOMAINMAP[CATMAP[bcat].domain] && DOMAINMAP[CATMAP[bcat].domain].hidden){ b.remove(); return; }
+    b.addEventListener('click', function(){
+      $$('[data-intent]', intentHost).forEach(function(x){ x.classList.remove('is-active'); x.setAttribute('aria-pressed','false'); });
+      b.classList.add('is-active'); b.setAttribute('aria-pressed','true');
+      filterState.intent = b.getAttribute('data-intent');
+      renderCatalog();
+    });
+  });
 }
-if(window.THREE) initHero();
-else { window.addEventListener('load', initHero); heroFallback(); }
 
 /* ---------- BOOT ---------- */
-(function fillStats(){
-  var a=$('[data-stat-algos]'); if(a) a.textContent=ALGOS.length;
-  var f=$('[data-stat-fields]'); if(f) f.textContent=CATS.filter(function(c){ return ALGOS.some(function(m){return m.cat===c.id;}); }).length;
-  var d=$('[data-stat-domains]'); if(d) d.textContent=DOMAINS.filter(function(x){ return ALGOS.some(function(m){return CATMAP[m.cat] && CATMAP[m.cat].domain===x.id;}); }).length;
-})();
 renderChips();
 renderCatalog();
+initHeroDemo();
 route();
 
 })();

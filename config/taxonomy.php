@@ -4,7 +4,7 @@
 return [
   'domains' => [
     'cs'  => ['th' => 'วิทยาการคอมพิวเตอร์', 'en' => 'Computer Science'],
-    'cpe' => ['th' => 'วิศวกรรมคอมพิวเตอร์',  'en' => 'Computer Engineering'],
+    'cpe' => ['th' => 'วิศวกรรมคอมพิวเตอร์',  'en' => 'Computer Engineering', 'hidden' => true],
     'se'  => ['th' => 'วิศวกรรมซอฟต์แวร์',    'en' => 'Software Engineering'],
   ],
   'fields' => [
