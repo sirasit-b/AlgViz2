@@ -1,0 +1,151 @@
+<!-- ==========================================================================
+     AlgoViz — VisuAlgo-style algorithm visualizer (borntoDev edition)
+     Single-page widget: catalog + 20 interactive visualizers.
+     All JS is inlined (WP embed = head.html + body.html only).
+     ========================================================================== -->
+<div class="btd-algoviz" data-av-root>
+
+  <!-- ================= TOP BAR ================= -->
+  <div class="av-top">
+    <div class="av-wrap">
+      <div class="av-top-row">
+        <a class="av-brand" href="#" data-av-home>
+          <span class="av-brand-mark">A</span>
+          <span>AlgoViz <small>· borntoDev</small></span>
+        </a>
+        <div class="av-top-links">
+          <a href="#" data-av-home>หน้ารวม</a>
+          <a href="#dom-cs" data-av-jump="cs">CS</a>
+          <a href="#dom-cpe" data-av-jump="cpe">CPE</a>
+          <a href="#dom-se" data-av-jump="se">SE</a>
+          <a href="https://www.borntodev.com" target="_blank" rel="noopener">borntoDev ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CATALOG VIEW ================= -->
+  <section class="av-view is-active" data-view="catalog">
+    <div class="av-hero">
+      <div class="av-hero-bg">
+        <div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>
+      </div>
+      <div class="av-hero-grid-bg"></div>
+      <canvas class="av-hero-canvas" data-hero-canvas></canvas>
+      <div class="av-wrap">
+        <div class="av-hero-inner">
+          <span class="eyebrow">Learn by seeing · เห็นภาพ เข้าใจจริง</span>
+          <h1>เห็น<span class="accent">อัลกอริทึม</span>ทำงาน<br>ทีละสเต็ป จนเข้าใจ</h1>
+          <p class="lede">AlgoViz รวม 20 อัลกอริทึมและโครงสร้างข้อมูลที่ต้องรู้ — กด Play ดูการทำงาน เดินทีละสเต็ป ใส่ข้อมูลของตัวเอง พร้อม Pseudocode และ Complexity อธิบายข้าง ๆ ทุกตัว</p>
+          <div class="av-hero-cta">
+            <a class="btn btn-primary" href="#cat-sort" data-av-jump="sort">เริ่มจาก Sorting →</a>
+            <a class="btn btn-ghost" href="#av=binary-search" data-av-open="binary-search">ลอง Binary Search</a>
+          </div>
+          <div class="av-hero-stats">
+            <div class="av-hero-stat"><b data-stat-algos>20</b><span>หัวข้อ เล่นได้จริง</span></div>
+            <div class="av-hero-stat"><b data-stat-fields>6</b><span>สาขาย่อย จัดตามระดับ</span></div>
+            <div class="av-hero-stat"><b data-stat-domains>3</b><span>ศาสตร์ · CS / CPE / SE</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-filter">
+      <div class="av-wrap">
+        <div class="av-filter-row">
+          <div class="av-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" data-search placeholder="ค้นหาอัลกอริทึม เช่น sort, tree, dijkstra…">
+          </div>
+          <div class="av-chips" data-filter-chips></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-wrap" data-cats></div>
+
+    <div class="av-wrap" style="padding-bottom:70px">
+      <div style="margin-top:40px;padding:28px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--card);display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+        <div>
+          <div style="font-weight:800;font-size:20px;margin-bottom:4px">อยากเขียนโค้ดให้แน่นกว่านี้?</div>
+          <div style="color:var(--text-2);font-size:14.5px">ต่อยอดจากภาพในหัว สู่การเขียนจริงกับคอร์สและคอมมูนิตี้ของ borntoDev</div>
+        </div>
+        <a class="btn btn-primary" href="https://www.borntodev.com" target="_blank" rel="noopener">ดูคอร์สทั้งหมด →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VISUALIZER VIEW ================= -->
+  <section class="av-view" data-view="viz">
+    <div class="av-vizbar">
+      <div class="av-wrap">
+        <div class="av-vizbar-row">
+          <a class="av-back" href="#" data-av-home>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="m15 18-6-6 6-6"/></svg>
+            กลับหน้ารวม
+          </a>
+          <div class="av-viz-title">
+            <span class="cat-label" data-viz-cat></span>
+            <h1 data-viz-name></h1>
+          </div>
+          <div class="av-viz-nav">
+            <button class="av-navbtn" data-viz-prev title="อันก่อนหน้า"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button class="av-navbtn" data-viz-next title="อันถัดไป"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-wrap">
+      <div class="av-viz">
+        <!-- LEFT: controls -->
+        <div>
+          <div class="av-panel">
+            <h4>ควบคุมการเล่น</h4>
+            <div class="av-transport">
+              <button class="av-tbtn" data-t="first" title="ไปเฟรมแรก"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20 9 12l10-8v16z"/><path d="M5 19V5"/></svg></button>
+              <button class="av-tbtn" data-t="prev" title="ถอย 1 สเต็ป"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+              <button class="av-tbtn play" data-t="play" title="เล่น / หยุด"><svg data-play-icon viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+              <button class="av-tbtn" data-t="next" title="เดิน 1 สเต็ป"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button class="av-tbtn" data-t="last" title="ไปเฟรมสุดท้าย"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 4 10 8-10 8V4z"/><path d="M19 5v14"/></svg></button>
+            </div>
+            <div class="av-scrub">
+              <input type="range" data-scrub min="0" max="0" value="0" step="1" style="flex:1">
+              <span class="cur" data-scrub-lbl>0 / 0</span>
+            </div>
+            <div class="av-field" style="margin:12px 0 0">
+              <label>ความเร็ว <span class="av-range-val" data-speed-val>ปกติ</span></label>
+              <input type="range" data-speed min="1" max="10" value="5" step="1">
+            </div>
+          </div>
+          <div class="av-panel">
+            <h4>อินพุต &amp; การทำงาน</h4>
+            <div data-controls></div>
+          </div>
+        </div>
+
+        <!-- CENTER: stage -->
+        <div class="av-stage-wrap">
+          <div class="av-caption"><span class="dot"></span><span data-caption>พร้อมเริ่ม</span></div>
+          <div class="av-stage"><svg data-svg viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="av-stats" data-stats></div>
+        </div>
+
+        <!-- RIGHT: explain -->
+        <div class="av-explain-col">
+          <div class="av-panel">
+            <h4>Pseudocode</h4>
+            <div class="av-pseudo" data-pseudo></div>
+            <div class="av-cx-row" style="margin-top:16px">
+              <div class="av-cx-box"><div class="k">เวลา · Time</div><div class="v" data-time>—</div></div>
+              <div class="av-cx-box"><div class="k">พื้นที่ · Space</div><div class="v" data-space>—</div></div>
+            </div>
+            <div class="av-explain" data-explain></div>
+            <div class="av-note" data-note></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>

@@ -1,0 +1,21 @@
+# AlgoViz — route every non-file request in this folder to index.php.
+# Portable: no RewriteBase needed (rules are relative to this .htaccess directory).
+# Works on LiteSpeed and Apache (mod_rewrite / LiteSpeed rewrite engine).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Serve real files and directories as-is (assets/, config/, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else → front controller
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+# Long-cache static assets (busted via ?v=filemtime in the PHP)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+</IfModule>
