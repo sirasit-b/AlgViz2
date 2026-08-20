@@ -32,7 +32,7 @@ $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' 
 $host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $baseUrl = $scheme . '://' . $host . $base;
 $ogImage = 'https://www.borntodev.com/wp-content/uploads/2018/09/Black_Yellow_white-12-re.png';
-$SITE    = 'AlgoViz · borntoDev';
+$SITE    = 'DevSpark by BorntoDev';
 
 if ($topicId !== '' && isset($topics[$topicId])) {
   $t         = $topics[$topicId];
@@ -40,7 +40,7 @@ if ($topicId !== '' && isset($topics[$topicId])) {
   $pageDesc  = $t['blurb'] !== '' ? $t['blurb'] : ('เห็นภาพการทำงานของ ' . $t['en'] . ' ทีละสเต็ป');
   $canonical = $baseUrl . '/' . $topicId;
 } else {
-  $pageTitle = 'AlgoViz · เห็นภาพอัลกอริทึม & โครงสร้างข้อมูล (CS/CPE/SE) | borntoDev';
+  $pageTitle = 'เห็นภาพอัลกอริทึม & โครงสร้างข้อมูล (CS/CPE/SE) | DevSpark by BorntoDev';
   $pageDesc  = 'เว็บ Visualize อัลกอริทึมและโครงสร้างข้อมูล เล่นได้จริง ทีละสเต็ป พร้อม Pseudocode และ Complexity — โดย borntoDev';
   $canonical = $baseUrl . '/';
 }
@@ -63,7 +63,7 @@ foreach ($topics as $t) { $domainHas[$t['domain']] = true; }
 <noscript>
   <div style="max-width:1000px;margin:0 auto;padding:28px 20px;color:#ccc;font-family:'Noto Sans Thai',sans-serif">
     <h2 style="color:#FFC000">AlgoViz — สารบัญหัวข้อทั้งหมด</h2>
-    <?php foreach ($tax['domains'] as $did => $d): if (empty($domainHas[$did])) continue; ?>
+    <?php foreach ($tax['domains'] as $did => $d): if (empty($domainHas[$did]) || !empty($d['hidden'])) continue; ?>
       <h3 style="color:#fff"><?= e($d['th']) ?> · <?= e($d['en']) ?></h3>
       <?php foreach ($tax['fields'] as $fid => $f): if ($f['domain'] !== $did) continue;
         $list = array_filter($topics, fn($t) => $t['cat'] === $fid);
